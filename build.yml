@@ -1,0 +1,55 @@
+name: Build VoidMeteorShower cilent HTML
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      # Apply the VoidMeteorShower cilent changes on top of the workspace.
+      - name: Apply changes
+        run: |
+          unzip -o changed-files-only.zip
+          grep -n "VoidMeteorShower" platform/src/main/java/net/lax1dude/eaglercraft/v1_8/EaglercraftVersion.java
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          df -h
+
+      - name: Add swap
+        run: |
+          sudo swapoff -a || true
+          sudo fallocate -l 8G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
+          free -h
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node deps
+        run: npm ci
+
+      - name: Build standalone HTML
+        run: node wasm-toolchain/build-single-html.js --output VoidMeteorShower-cilent.html
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VoidMeteorShower-cilent
+          path: |
+            VoidMeteorShower-cilent.html
+            *.zip
+            !changed-files-only.zip
+          if-no-files-found: warn
